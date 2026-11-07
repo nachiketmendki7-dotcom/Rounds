@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Nachiket Mendki">
+<meta name="description" content="Rounds: a clickable prototype of a case management workbench. Five fictional patients; no real data.">
+<title>Rounds | Case Management Workbench prototype</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: clinical work surface — top bar, one working column, a right rail of design notes that can be hidden */
+:root{
+  --bg:#F3F4F1; --panel:#FCFCFA; --sunk:#E9ECEE; --line:#D3D9DF;
+  --ink:#16243A; --muted:#55627A; --faint:#7D8798;
+  --accent:#1F5BC6; --accent-soft:#E2EAF8;
+  --warn:#A8470E; --warn-soft:#FBE8DA; --warn-line:#D9793B;
+  --ok:#0C6B5D; --ok-soft:#D9F0EA;
+  --note:#6B4FA0; --note-soft:#EFEAF7;
+  --f-body:"Atkinson Hyperlegible", "Segoe UI", Arial, sans-serif;
+  --f-mono:"IBM Plex Mono", "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1724; --panel:#162131; --sunk:#1D2A3D; --line:#2C3B52;
+  --ink:#E8EDF4; --muted:#A9B6C8; --faint:#8592A6;
+  --accent:#7FA8F5; --accent-soft:#1E2F4F;
+  --warn:#F2A46B; --warn-soft:#3A2416; --warn-line:#C8692D;
+  --ok:#6FD3BF; --ok-soft:#123630;
+  --note:#BFA8EA; --note-soft:#2A2340; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1724; --panel:#162131; --sunk:#1D2A3D; --line:#2C3B52;
+  --ink:#E8EDF4; --muted:#A9B6C8; --faint:#8592A6;
+  --accent:#7FA8F5; --accent-soft:#1E2F4F;
+  --warn:#F2A46B; --warn-soft:#3A2416; --warn-line:#C8692D;
+  --ok:#6FD3BF; --ok-soft:#123630;
+  --note:#BFA8EA; --note-soft:#2A2340; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--ink)}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--ink);color:var(--bg);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;
+  display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
+header.top .brand{font-weight:700;font-size:18px}
+header.top .who{font-size:14px;opacity:.85}
+header.top .spacer{flex:1}
+.badge-proto{font-size:12px;letter-spacing:.06em;text-transform:uppercase;border:1px solid currentColor;border-radius:4px;padding:2px 8px;opacity:.9}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:6px 12px;font-size:15px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--panel);font-weight:700}
+.btn.warn{background:var(--warn-soft);border-color:var(--warn-line);color:var(--warn);font-weight:700}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+header .btn{background:transparent;color:var(--bg);border-color:rgba(255,255,255,.35)}
+main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px;
+  display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;max-width:1280px;margin:0 auto}
+body.nonotes main{grid-template-columns:minmax(0,1fr)}
+body.nonotes .rail{display:none}
+@media (max-width:900px){main{grid-template-columns:minmax(0,1fr)}}
+.crumbs{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted);margin-bottom:12px;flex-wrap:wrap}
+.crumbs a{color:var(--accent)}
+h1{font-size:26px;margin:0 0 4px;text-wrap:balance}
+h2{font-size:18px;margin:0 0 10px}
+.sub{color:var(--muted);font-size:15px;margin:0 0 16px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.chip{font-size:13px;border-radius:999px;padding:3px 10px;border:1px solid var(--line);background:var(--panel);white-space:nowrap}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent;font-weight:700}
+.chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent;font-weight:700}
+.chip.muted{background:var(--sunk);color:var(--muted);border-color:transparent}
+.chip.ai{background:var(--note-soft);color:var(--note);border-color:transparent;font-weight:700}
+/* queue */
+.qlist{display:flex;flex-direction:column;gap:10px}
+.qcard{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:8px;padding:12px 14px;display:grid;
+  grid-template-columns:44px minmax(0,1fr) auto;gap:4px 14px;align-items:start}
+.qcard.sev-high{border-left-color:var(--warn-line)}
+.qcard.sev-mid{border-left-color:var(--accent)}
+.qcard.done{opacity:.6}
+.rank{font-family:var(--f-mono);font-size:22px;font-weight:500;color:var(--muted);grid-row:span 3}
+.qname{font-weight:700;font-size:17px}
+.qname button{background:none;border:0;padding:0;font-weight:700;text-align:left;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.qwhy{color:var(--muted);font-size:15px}
+.qright{display:flex;flex-direction:column;gap:6px;align-items:flex-end;grid-row:span 3}
+.score{font-family:var(--f-mono);font-size:20px;font-weight:500;background:var(--ink);color:var(--bg);border-radius:6px;padding:2px 10px;border:0}
+.breakdown{grid-column:2 / 3;font-size:14px;color:var(--muted);background:var(--sunk);border-radius:6px;padding:8px 10px;display:grid;grid-template-columns:auto auto 1fr;gap:2px 10px}
+.breakdown .bar{height:8px;align-self:center;background:var(--accent);border-radius:4px}
+/* member */
+.strip{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:6px 22px;margin-bottom:16px}
+.strip .kv{display:flex;flex-direction:column;min-width:0}
+.strip .k{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--faint)}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:700px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.tl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.tl li{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px}
+.tl .when{font-family:var(--f-mono);font-size:13px;color:var(--muted);padding-top:2px}
+.tl .src{font-size:13px;color:var(--faint)}
+.tl li.stale{opacity:.6}
+.conf{border:2px solid var(--warn-line);background:var(--warn-soft);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.conf h3{margin:0;font-size:16px;color:var(--warn)}
+.conf .opt{display:grid;grid-template-columns:minmax(0,1fr);gap:2px;background:var(--panel);border-radius:6px;padding:8px 10px}
+.conf .opt .s{font-size:13px;color:var(--muted)}
+.conf .opt.pick{grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}
+.conf.resolved{border-color:var(--ok);background:var(--ok-soft)}
+.conf.resolved h3{color:var(--ok)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.stack{display:flex;flex-direction:column;gap:12px}
+.nba{background:var(--accent-soft);border-radius:8px;padding:14px 16px;margin-top:16px}
+.nba ol{margin:6px 0 12px;padding-left:22px;display:flex;flex-direction:column;gap:4px}
+.gap{font-size:15px;color:var(--muted);border:1px dashed var(--line);border-radius:6px;padding:8px 10px}
+/* outreach */
+.contact{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.contact.dead{opacity:.6}
+.contact.dead .num{text-decoration:line-through}
+.contact.best{border:2px solid var(--accent)}
+.num{font-family:var(--f-mono);font-size:17px}
+.field{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.field.pending{color:var(--faint);border-style:dashed}
+.field label{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted)}
+.filed{background:var(--ok-soft);color:var(--ok);border-radius:8px;padding:12px 14px;font-weight:700}
+/* notes rail */
+.rail{display:flex;flex-direction:column;gap:12px;align-self:start;position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px)}
+.rail h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--note);margin:0}
+.dn{background:var(--note-soft);border-radius:8px;padding:10px 12px;font-size:14px}
+.dn b{display:block;color:var(--note);margin-bottom:2px}
+@media (max-width:900px){.rail{position:static}}
+.log{font-size:13px;color:var(--ok);font-family:var(--f-mono)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.reveal{animation:fadein .35s ease}
+@keyframes fadein{from{opacity:.2}to{opacity:1}}
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="brand">Rounds <span style="font-weight:400;opacity:.75">· Case Management Workbench</span></span>
+  <span class="who">Maria Lopez, RN · Complex CM · <span class="mono">Mon 9 Nov 2026 08:00</span></span>
+  <span class="spacer"></span>
+  <span class="badge-proto">Prototype · fictional patients</span>
+  <button class="btn" id="toggleNotes" type="button" aria-pressed="true">Hide design notes</button>
+</header>
+<main>
+  <section id="view" aria-live="polite"></section>
+  <aside class="rail" id="rail" aria-label="Design notes"></aside>
+</main>
+
+<script>
+const TODAY = new Date(2026,10,9);
+const W = {urgency:35, deadline:30, risk:20, safety:15};
+const state = {decisions:{}, merged:{}, reassigned:{}, done:{}, nba:{}, call:{}, confirm:{}, filter:'all', open:{}};
+
+const P = {
+ p1:{name:"Harold Brennan",age:78,id:"M-20311",plan:"Medicare Advantage HMO",lang:"English",pcp:"Dr L. Moreno",
+  carer:"Joan Brennan (wife) · authorized rep verified", carerOk:true, risk:0.82, drivers:"HF admission · 8+ meds · age",
+  scen:"HF discharge Sat", urg:5, dl:new Date(2026,10,10), dlLabel:"Contact due Tue", flags:2, reachHow:"Call now · wife Joan is authorized",reachOk:true,
+  why:"Discharge stopped lisinopril, yet it was filled 12 days ago · Entresto PA pending", act:"Call now: med rec",
+  timeline:[
+   ["Sat 7 Nov","Discharged home from St. Agnes Medical Center","ADT · 2 d · duplicate discharge message removed"],
+   ["Sun 8 Nov","Discharge summary received as PDF; medications read by AI","HIE · 1 d · AI-read, High confidence"],
+   ["Sat 7 Nov","Sacubitril/valsartan fill rejected: prior auth required","Pharmacy (PBM) · 2 d"],
+   ["Sat 7 Nov","Pharmacy prior auth #A-77812 submitted, pending","PBM ePA · 2 d"],
+   ["Thu 5 Nov","NT-proBNP 1,240 pg/mL · potassium 4.9 · creatinine 1.4","Labs via HIE · 4 d"],
+   ["Tue 3 Nov","Admitted: acute on chronic systolic heart failure (I50.23)","ADT · 6 d"],
+   ["22 Sep","Cardiology office visit (99214)","Claims · as of 9 Oct · inpatient stay not billed yet",true]],
+  conflicts:[
+   {key:"lis",title:"Lisinopril 10 mg",risk:"Taking an ACE inhibitor with sacubitril/valsartan risks angioedema (needs a 36-hour gap).",
+    opts:[["Discharge summary · 8 Nov · AI-read, High","STOPPED, replaced by sacubitril/valsartan"],["Pharmacy · filled 28 Oct","30-day supply, may still be at home"]]},
+   {key:"fur",title:"Furosemide",risk:"Old bottles at home could lead to under-dosing the diuretic.",
+    opts:[["Discharge summary · 8 Nov","40 mg twice daily"],["Pharmacy · filled 15 Oct","20 mg once daily"]]}],
+  gaps:["No cardiology or PCP visit booked after discharge (7-day visit due Fri 13 Nov)"],
+  nba:["Call Harold and Joan this morning and reconcile medications","Flag to the PCP today: K 4.9, new spironolactone, Entresto pending; ask about an early potassium check","Expedite pharmacy PA #A-77812 as the prescriber directs; book a visit by Fri 13 Nov"],
+  contacts:[{num:"(555) 014-2290",src:"Eligibility · reached here 30 Sep",conf:"High",best:"Call · mornings",best1:true}],
+  brief:["Discharged Saturday after a 4-day heart-failure stay","Lisinopril stopped; Entresto not filled yet (pharmacy PA)","Joan is his authorized representative"],
+  note:[["Contact","auto","Call 08:42 · reached Harold and Joan · 14 min"],
+   ["Medication reconciliation","confirm","Lisinopril removed from pill box; furosemide 40 mg twice daily confirmed"],
+   ["Barrier","confirm","Worried about Entresto copay"],
+   ["Plan","auto","Cardiology visit Thu 12 Nov 10:30 booked · potassium check ordered"],
+   ["Education","confirm","Weigh daily; call if up 1 kg in a day or 2 kg in a week"]]},
+ p2:{name:"Rosa Delgado",age:66,id:"M-30877",plan:"Medicare Advantage PPO",lang:"Spanish",pcp:"Dr A. Reyes",
+  carer:"Lives with husband · no rep needed", carerOk:true, risk:0.63, drivers:"A1c rising · glipizide gap · low-sugar visit",
+  scen:"rising-risk diabetes", urg:2, dl:null, dlLabel:"This week", flags:1, reachHow:"Spanish-speaking nurse · 2 missed calls",reachOk:false,
+  why:"Looks like she stopped refills, but her mail-order fills sit in a separate file · glipizide stopped after a low", act:"Call in Spanish",
+  timeline:[
+   ["Sun 1 Nov","Metformin ER, 90-day mail order","Mail-order file · arrived 6 Nov · not in the retail adherence list"],
+   ["Tue 27 Oct","HbA1c 8.9% for a sample taken 28 Sep (was 7.4% in March)","Lab · arrived a month late"],
+   ["Sat 10 Oct","Urgent care 20 Aug: type 2 diabetes with hypoglycemia (E11.649)","Claims · arrived 51 days after the visit"],
+   ["10 Aug","Glipizide 5 mg last filled, 30 days · ran out about 9 Sep","Pharmacy (PBM)"],
+   ["2 Jul","Metformin ER last retail fill under M-30877","Pharmacy (PBM)"],
+   ["Dec 2025","Food insecurity: “sometimes true”","SDOH screen · 11 months old, stale",true]],
+  conflicts:[
+   {key:"met",title:"Metformin refills",risk:"The retail adherence list says metformin lapsed; the mail-order file shows it on time. A refill-reminder call would miss the real problem.",
+    opts:[["Retail pharmacy feed (PBM)","Last retail fill 2 Jul: looks 4 months overdue"],["Mail-order file · arrived 6 Nov","90-day fills 15 Aug and 1 Nov: on time, supply to 30 Jan"]]},
+   {key:"lang",title:"Preferred language",risk:"Two calls from an English-speaking nurse went unanswered.",
+    opts:[["Eligibility","Spanish"],["Case management system","English"]]}],
+  gaps:["Diabetic eye exam still open (bundle into the same call)"],
+  nba:["Call in Spanish this week (Spanish-speaking nurse or interpreter line)","Ask about low blood sugar since August","Message PCP to review glipizide rather than push a refill","Re-screen food insecurity"],
+  contacts:[{num:"(555) 013-8821",src:"Eligibility · 2 unanswered English calls in Oct",conf:"Medium",best:"Call in Spanish · time unknown",best1:true}],
+  brief:["Glipizide stopped right after an urgent-care visit for low sugar","A1c 7.4% → 8.9%","Metformin is on time through mail order"],
+  note:[["Contact","auto","Call 14:05 via interpreter line · reached Rosa · 18 min"],
+   ["Hypoglycemia history","confirm","Two more shaky episodes in August; stopped glipizide herself"],
+   ["Plan","auto","PCP messaged to review glipizide; eye exam booked 20 Nov"],
+   ["SDOH","confirm","Food: runs short at month end; referral to food bank"]]},
+ p3:{name:"Marcus Bell",age:39,id:"M-41562",plan:"Medicaid managed care",lang:"English",pcp:"Dr S. Iyer (no visit in 14 months)",
+  carer:"None recorded", carerOk:true, risk:0.71, drivers:"rescue-inhaler overuse · no controller · ED frequency",
+  scen:"ED last night", urg:4, dl:new Date(2026,10,16), dlLabel:"Asthma follow-up by Mon 16", flags:1, reachHow:"Old number dead · new mobile from Rx claim",reachOk:false,
+  why:"Left the ED 5 hours ago · old number dead, a new one is on Thursday’s pharmacy claim", act:"Call new mobile",
+  timeline:[
+   ["Mon 9 Nov","ED visit, Riverside General: wheeze, short of breath · home 02:40","ADT · 5 h"],
+   ["Thu 5 Nov","Albuterol inhaler filled · claim lists phone (555) 019-7734","Pharmacy (PBM) · 4 d"],
+   ["Mon 2 Nov","Mailed letter returned undeliverable","Mail log · 7 d"],
+   ["20 Oct","Phone on file disconnected (carrier tone)","Phone check · 20 d"],
+   ["90 days","5 ED visits in ADT; claims show only 3 so far","ADT + claims, de-duplicated"],
+   ["3 Jun","Controller inhaler (fluticasone/salmeterol) last filled","Pharmacy (PBM) · 159 d",true]],
+  conflicts:[
+   {key:"ph",title:"Phone number",risk:"Six attempts on the old number since September, none connected.",
+    opts:[["Eligibility","(555) 017-4401 · disconnected 20 Oct"],["Pharmacy claim · 5 Nov","(555) 019-7734 · Medium confidence"]]}],
+  gaps:["SDOH screen never completed (shown as unknown, not “no needs”)","No PCP relationship: attribution is stale"],
+  nba:["Call the new number now (nurse-dialed); verify identity and ask for text consent","If no answer by noon, call Riverside General’s ED case manager","Assign a community health worker","Book any available PCP visit this week"],
+  contacts:[{num:"(555) 017-4401",src:"Eligibility · disconnected since 20 Oct",conf:"Dead",best:"Do not dial",dead:true},
+            {num:"(555) 019-7734",src:"Patient-phone field, pharmacy claim · Thu 5 Nov",conf:"Medium",best:"Nurse-dialed call · verify identity · no text consent yet",best1:true}],
+  brief:["Left Riverside ED at 02:40 today","No controller fill seen since June; 4 rescue fills","No PCP visit in 14 months; SDOH never done"],
+  note:[["Contact","auto","Call 09:05 → voicemail · call 10:42 → reached · 16 min"],
+   ["Barrier","confirm","“Can’t afford the controller inhaler”"],
+   ["Text consent","confirm","Agreed to texts on (555) 019-7734"],
+   ["Plan","auto","PCP visit Wed 11 Nov 15:00 booked · copay assistance request sent"],
+   ["SDOH","confirm","Housing stable; transport is sometimes a problem"]]},
+ p4:{name:"Jordan Avery",age:29,id:"M-52209",plan:"Medicaid managed care",lang:"English",pcp:"Dr K. Osei",
+  carer:"Hope House case worker Dana K. · release of information signed 4 Nov", carerOk:true, risk:0.66, drivers:"recent psychiatric stay · housing · prepaid phone",
+  scen:"psych discharge", urg:4, dl:new Date(2026,10,12), dlLabel:"FUH due Thu", flags:2, reachHow:"Text Jordan now · call 18:10 · shelter worker on release",reachOk:true,
+  why:"Records disagree on where Jordan lives · Medicaid renewal mailed to the old address · no BH visit booked", act:"Text Jordan, call shelter worker",
+  route:true,
+  timeline:[
+   ["Thu 5 Nov","Discharged from Lakeview Behavioral Health to Hope House shelter","ADT · 4 d"],
+   ["Thu 5 Nov","Lithium carbonate 300 mg twice daily, 14 days · runs out 19 Nov","Pharmacy (PBM) · 4 d"],
+   ["Mon 2 Nov","Medicaid renewal packet mailed to 410 Pine Ave · due 30 Nov","State eligibility file · 7 d"],
+   ["Wed 4 Nov","Release of information signed for Hope House case worker","Consents · 5 d"],
+   ["29 Oct","Admitted, inpatient psychiatry","ADT · 11 d"],
+   ["3 Oct","Last successful contact: SMS at 19:40","Contact log · 37 d"],
+   ["Feb 2026","Housing: “stable”","SDOH screen · 9 months old, contradicted",true]],
+  conflicts:[
+   {key:"addr",title:"Where Jordan lives",risk:"The 7-day follow-up has to be booked where Jordan actually is.",
+    opts:[["Discharge record (ADT) · 5 Nov","Hope House shelter"],["Eligibility","410 Pine Ave Apt 12 (evicted)"],["SDOH screen · Feb","“Stable housing”"]]}],
+  gaps:["No behavioral-health outpatient visit booked (FUH 7-day window closes Thu 12 Nov)","Medicaid renewal due 30 Nov went to the evicted address: coverage at risk","No lithium level since discharge"],
+  nba:["Text Jordan now that the plan is helping (text consent on file); call at 18:10, when they answer","Call Dana K. at Hope House (release of information on file) to book a BH visit by Wed","Jordan confirms the shelter address for the Medicaid renewal before 30 Nov","Add a lithium level to that visit; route the case to BH"],
+  contacts:[{num:"(555) 018-2203",src:"Hope House case worker Dana K. · release of information on file",conf:"High",best:"Call now · office hours",best1:true},
+            {num:"(555) 012-6658",src:"Jordan · prepaid · text consent on file · last reached 3 Oct",conf:"Medium",best:"SMS · evenings · scheduled 18:10"}],
+  brief:["Discharged from inpatient psychiatry Thursday to a shelter","On lithium; bridge supply ends 19 Nov","Consent allows talking to the shelter case worker"],
+  note:[["Contact","auto","Call 08:20 to Dana K. · 12 min · SMS to Jordan 18:10 → reply 18:32"],
+   ["Housing","confirm","At Hope House; bed held through 30 Nov"],
+   ["Plan","auto","BH outpatient visit Wed 11 Nov 14:00 at Lakeview · lithium level ordered"],
+   ["Coverage","confirm","Renewal form started with Dana; mailing address updated to Hope House"],
+   ["Safety","confirm","Taking lithium; no missed doses reported"]]},
+ p5:{name:"Evelyn Hart",age:84,id:"M-60418",plan:"Dual-eligible SNP (Medicare + Medicaid)",lang:"English",pcp:"Dr M. Chen",
+  carer:"Daughter Linda · involved in care: share only with Evelyn’s OK, limited to Linda’s role · no legal rep on file", carerOk:false, risk:0.58, drivers:"fall in October · dementia · CKD stage 4",
+  scen:"dual, caregiver strain", urg:3, dl:new Date(2026,10,12), dlLabel:"Auth ends Thu", flags:3, reachHow:"Via daughter Linda (involved in care)",reachOk:false,
+  why:"NSAID started in CKD stage 4 · duplicate amlodipine · home-health auth ends Thu", act:"Request auth extension",
+  timeline:[
+   ["Sun 25 Oct","Case note: daughter “exhausted, thinking of leaving her job”","Case notes · AI tagged caregiver strain, source sentence linked"],
+   ["Sun 25 Oct","Amlodipine 10 mg filled at Pharmacy B","Pharmacy (PBM) · 15 d"],
+   ["Tue 20 Oct","Meloxicam 7.5 mg filled (urgent-care prescriber)","Pharmacy (PBM) · 20 d"],
+   ["Sat 17 Oct","ED visit after a fall, head contusion (W19, S00.83)","Claims only · arrived 4 Nov, 18 days late · hospital sends no ADT"],
+   ["Mon 12 Oct","Amlodipine 5 mg filled at Pharmacy A","Pharmacy (PBM) · 28 d"],
+   ["15 Sep","PCP record: 9 medicines, eGFR 22 (CKD 4), dementia","Clinical record (CCD) · 55 d",true]],
+  conflicts:[
+   {key:"aml",title:"Amlodipine dose",risk:"Two pharmacies, two strengths: she may be taking both.",
+    opts:[["Pharmacy A · 12 Oct","5 mg daily"],["Pharmacy B · 25 Oct","10 mg daily"],["PCP record · Sep","10 mg daily"]]},
+   {key:"nsaid",title:"Meloxicam with eGFR 22",risk:"NSAIDs are usually avoided in CKD stage 4. Route to the PCP or pharmacist; the workbench does not change medicines.",
+    opts:[["Pharmacy · 20 Oct","Meloxicam 7.5 mg daily, urgent-care prescriber"],["PCP record · Sep","No NSAIDs; eGFR 22"]]}],
+  gaps:["Home-health authorization #H-55190 expires Thu 12 Nov","Caregiver burden screen never done"],
+  nba:["Request the home-health authorization extension today","Ask Evelyn if Linda may join the call; offer the authorized-rep form if she wants Linda to act for her","Route meloxicam and duplicate amlodipine to PCP / pharmacist","Offer respite or adult day care referral"],
+  contacts:[{num:"(555) 015-3390",src:"Eligibility · Evelyn’s landline (dementia)",conf:"Low",best:"Not the right person to plan with"},
+            {num:"(555) 016-7742",src:"Linda · from case notes 25 Oct",conf:"Medium",best:"Call · after 17:00",best1:true}],
+  brief:["Fall in October seen only in claims, 18 days late","Meloxicam in CKD stage 4 and amlodipine from two pharmacies","Linda is the real contact; no legal representative on file"],
+  note:[["Contact","auto","Call 17:20 · reached Linda · 22 min"],
+   ["Authority","confirm","Rep form sent by e-sign; Linda signed during the call"],
+   ["Plan","auto","Home-health extension requested · PCP message re meloxicam and amlodipine"],
+   ["Caregiver","confirm","Burden screen: high; respite referral accepted"]]}
+};
+
+const TARGET = {"Contact":"Audit note: contact attempt","Medication reconciliation":"Assessment: med rec · care plan goal","Barrier":"Care plan: problem",
+ "Plan":"Care plan: intervention","Education":"Care plan: intervention (teaching)","Text consent":"Consent record (TCPA)","SDOH":"Assessment: SDOH · Z-code",
+ "Hypoglycemia history":"Assessment: symptoms","Housing":"Assessment: SDOH · Z59.01","Coverage":"Care plan: problem (eligibility)","Safety":"Assessment: adherence",
+ "Authority":"Consent record: authorized rep","Caregiver":"Assessment: caregiver burden"};
+function days(a,b){return Math.round((a-b)/86400000)}
+function scoreParts(p){
+  const dd = p.dl ? days(p.dl,TODAY) : 30;
+  const parts = [
+    ["Clinical urgency", W.urgency*p.urg/5, p.urg+"/5"],
+    ["Deadline", W.deadline*Math.max(0,7-dd)/7, dd>=30?"none":dd+" d left"],
+    ["Risk score", W.risk*p.risk, p.risk.toFixed(2)],
+    ["Safety flags", W.safety*Math.min(p.flags,3)/3, p.flags+" flag"+(p.flags===1?"":"s")]];
+  return {parts, total: parts.reduce((s,x)=>s+x[1],0)};
+}
+function ranked(){return Object.keys(P).map(k=>({k,s:scoreParts(P[k]).total})).sort((a,b)=>b.s-a.s)}
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+const NOTES = {
+ queue:[["Rank, not inbox","Ordered by a visible score. Tap the number to see exactly how it was built."],
+  ["Hard windows","Chips show the deadlines the plan is measured on: 2-day post-discharge contact, 7-day follow-up after psychiatric stays, authorization expiry."],
+  ["Rules first, ML later","The MVP score is rules a nurse can argue with. Overrides are logged and used to re-tune weights monthly."],
+  ["Why Marcus is 4th","Evelyn has a hard deadline and three safety flags. Maria can still move Marcus up because he just left the ED; the override is logged."],
+  ["Reach is not rank","Being hard to reach never lowers a member’s rank. The reach chip only decides the channel: call, text, caregiver or community health worker."]],
+ member:[["Question order","Who is this, what changed, what doesn’t add up, what do I do. Top to bottom."],
+  ["Freshness","Every fact names its source and age. Weeks-old claims are faded and labeled as history."],
+  ["Conflicts","Never resolved silently. The nurse picks; the decision is logged for audit."],
+  ["Unknown ≠ none","Missing data is shown as unknown, so a blank screen never reads as “no needs”."]],
+ note:[["Number confidence","Phone numbers are data with a confidence score, gathered from eligibility, pharmacy claims and past contacts."],
+  ["AI drafts, nurse signs","Fields marked auto come from system events. Fields marked confirm came from the conversation and need the nurse."],
+  ["One entry, three forms","Signing fills the assessment, the care plan and the audit note. That re-typing costs about 2.5 hours a day today."],
+  ["Never unsigned","Nothing is sent to a member or filed without the nurse’s sign-off."]]
+};
+
+function renderNotes(kind){
+  document.getElementById('rail').innerHTML = '<h2>Design notes</h2>' +
+    NOTES[kind].map(n=>'<div class="dn"><b>'+esc(n[0])+'</b>'+esc(n[1])+'</div>').join('');
+}
+
+function viewQueue(){
+  const r = ranked();
+  const filt = state.filter;
+  const list = r.filter(({k})=>{
+    const p=P[k], dd=p.dl?days(p.dl,TODAY):30;
+    if(filt==='due') return dd<=3;
+    if(filt==='safety') return p.flags>=2;
+    return true;
+  });
+  let h = '<h1>Who needs me first, and why?</h1><p class="sub">48 active cases · 6 new alerts since Friday · 5 shown, highest priority first</p>';
+  h += '<div class="chips" role="group" aria-label="Filter">' +
+    [['all','All'],['due','Due within 3 days'],['safety','2+ safety flags']].map(([id,l])=>
+      '<button class="chip'+(filt===id?' on':'')+'" data-filter="'+id+'" type="button">'+l+'</button>').join('') + '</div>';
+  h += '<div class="qlist">';
+  list.forEach(({k,s},i)=>{
+    const p=P[k]; const sp=scoreParts(p); const rank=r.findIndex(x=>x.k===k)+1;
+    const sev = s>=55?'sev-high':'sev-mid';
+    const dlClass = p.dl?'warn':'muted';
+    h += '<article class="qcard '+sev+(state.done[k]?' done':'')+'">'+
+      '<div class="rank">'+rank+'</div>'+
+      '<div class="qname"><button type="button" data-open="'+k+'">'+esc(p.name)+'</button>, '+p.age+' · '+esc(p.scen)+
+        (state.done[k]?' <span class="chip ok">Note filed</span>':'')+'</div>'+
+      '<div class="qright"><button class="score" type="button" data-break="'+k+'" aria-expanded="'+(!!state.open[k])+'" title="How this score was built">'+Math.round(s)+'</button>'+
+        '<span class="chip '+dlClass+'">'+esc(p.dlLabel)+'</span></div>'+
+      '<div class="qwhy">'+esc(p.why)+'</div>'+
+      '<div class="row"><button class="btn primary" type="button" data-open="'+k+'">→ '+esc(p.act)+'</button><span class="chip '+(p.reachOk?'ok':'muted')+'">Reach: '+esc(p.reachHow)+'</span></div>'+
+      (state.open[k]?'<div class="breakdown">'+sp.parts.map(x=>'<span>'+x[0]+'</span><span class="mono">+'+x[1].toFixed(1)+'</span><span class="bar" style="width:'+(x[1]/35*100).toFixed(0)+'%" aria-label="'+esc(x[2])+'"></span>').join('')+
+        '<span style="grid-column:1/-1">Inputs: '+sp.parts.map(x=>esc(x[0])+' '+esc(x[2])).join(' · ')+'</span></div>':'')+
+      '</article>';
+  });
+  if(!list.length) h+='<p class="gap">No members match this filter.</p>';
+  h += '</div>';
+  return h;
+}
+
+function viewMember(k){
+  const p=P[k]; const d=state.decisions;
+  let h = '<div class="crumbs"><a href="#queue">← Queue</a><span>/</span><span>Member 360</span></div>';
+  h += '<h1>'+esc(p.name)+', '+p.age+'</h1><p class="sub">'+esc(p.why)+'</p>';
+  h += '<div class="strip">'+[["Member ID",'<span class="mono">'+p.id+'</span>'],["Plan",esc(p.plan)],["Language",esc(p.lang)],["PCP",esc(p.pcp)],
+    ["Who I may talk to",(p.carerOk?'':'<span class="chip warn">Legal rep not on file</span> ')+esc(p.carer)],
+    ["Risk",'<span class="mono">'+p.risk.toFixed(2)+'</span> · '+esc(p.drivers)]].map(x=>'<div class="kv"><span class="k">'+x[0]+'</span><span>'+x[1]+'</span></div>').join('')+'</div>';
+  if(p.route){
+    h += state.reassigned[k] ? '<p class="filed reveal">Case co-assigned to BH counselor S. Park and social worker T. Ruiz. Maria stays on for medical follow-up.</p>'
+      : '<div class="conf" style="margin-bottom:16px"><h3>Routing: this case sits in the medical RN queue</h3><span>Behavioral health and housing needs suggest a BH counselor and a social worker should lead.</span><div class="row"><button class="btn warn" type="button" data-route="'+k+'">Co-assign BH counselor + social worker</button></div></div>';
+  }
+  h += '<div class="grid2"><div class="panel"><h2>Timeline · newest first</h2><ul class="tl">';
+  const tl = p.timeline.slice();
+  tl.forEach(t=>{h+='<li class="'+(t[3]?'stale':'')+'"><span class="when">'+esc(t[0])+'</span><span>'+esc(t[1])+'<br><span class="src">'+esc(t[2])+(t[3]?' · faded: old or stale':'')+'</span></span></li>'});
+  h += '</ul></div><div class="stack">';
+  p.conflicts.forEach(c=>{
+    const id=k+'-'+c.key; const done=d[id]!==undefined;
+    if(c.merge){
+      if(state.decisions[k+'-dupno']) {h+='<div class="conf resolved reveal"><h3>Kept as separate records</h3><span>Flagged to Enrollment for review.</span><span class="log">Decision logged by M. Lopez · 08:11</span></div>';return}
+      if(state.merged[k]) h+='<div class="conf resolved reveal"><h3>Records linked in this view</h3><span>Metformin is on time through mail order (supply to 30 Jan). Only glipizide stopped, right after the August low-sugar visit.</span><span class="log">Linked by M. Lopez · 08:11 · sent to Enrollment to confirm the merge</span></div>';
+      else h+='<div class="conf"><h3>'+esc(c.title)+'</h3><span>'+esc(c.risk)+'</span>'+c.opts.map(o=>'<div class="opt"><span class="s">'+esc(o[0])+'</span><span>'+esc(o[1])+'</span></div>').join('')+
+        '<div class="row"><button class="btn primary" type="button" data-merge="'+k+'">Same person: link in my view</button><button class="btn" type="button" data-merge-no="'+k+'">Not the same</button></div></div>';
+      return;
+    }
+    if(done){
+      const pick = d[id]==='pcp' ? 'Sent to the PCP by secure message with both sources and the discharge list · follow-up task in 24 h' : 'Verified on call: '+c.opts[d[id]][1];
+      h+='<div class="conf resolved reveal"><h3>'+esc(c.title)+'</h3><span>'+esc(pick)+'</span><span class="log">Decision logged by M. Lopez · 08:14</span></div>';
+    } else {
+      h+='<div class="conf"><h3>'+esc(c.title)+' · sources disagree</h3><span>'+esc(c.risk)+'</span>'+
+        c.opts.map((o,i)=>'<div class="opt pick"><div><span class="s">'+esc(o[0])+'</span><br><span>'+esc(o[1])+'</span></div><button class="btn" type="button" data-pick="'+id+'" data-i="'+i+'">Verified on call</button></div>').join('')+
+        '<div class="row"><button class="btn warn" type="button" data-pick="'+id+'" data-i="pcp">Ask PCP / pharmacist</button></div></div>';
+    }
+  });
+  p.gaps.forEach(g=>{h+='<div class="gap">Gap · '+esc(g)+'</div>'});
+  h += '</div></div>';
+  h += '<div class="nba"><h2>Next best actions</h2><ol>'+p.nba.map((n,i)=>{const id=k+'-'+i;return '<li><label><input type="checkbox" id="nba-'+id+'" data-nba="'+id+'"'+(state.nba[id]?' checked':'')+'> '+esc(n)+'</label></li>'}).join('')+'</ol>'+
+    '<div class="row"><a class="btn primary" href="#note-'+k+'">Start outreach →</a><span class="chip muted">Rules: '+(k==='p1'?'rejected fill + pending PA → escalate PA':'deadline + gap → book the visit first')+'</span></div></div>';
+  return h;
+}
+
+function viewNote(k){
+  const p=P[k]; const c=state.call[k]||0; const conf=state.confirm;
+  let h = '<div class="crumbs"><a href="#queue">← Queue</a><span>/</span><a href="#member-'+k+'">'+esc(p.name)+'</a><span>/</span><span>Outreach &amp; note</span></div>';
+  h += '<h1>Reach '+esc(p.name.split(' ')[0])+'</h1><p class="sub">Ranked numbers on the left, the AI draft on the right. The nurse signs.</p>';
+  h += '<div class="grid2"><div class="stack"><h2>Best way to reach '+esc(p.name.split(' ')[0])+'</h2>';
+  p.contacts.forEach(ct=>{h+='<div class="contact'+(ct.dead?' dead':'')+(ct.best1?' best':'')+'"><span class="num">'+esc(ct.num)+'</span><span class="src" style="font-size:14px;color:var(--muted)">'+esc(ct.src)+'</span><div class="row"><span class="chip '+(ct.dead?'warn':ct.conf==='High'?'ok':'muted')+'">'+esc(ct.conf)+'</span><span style="font-size:14px">'+esc(ct.best)+'</span></div></div>'});
+  h += '<div class="panel"><h2>Pre-call brief <span class="chip ai">AI · linked to sources</span></h2><ul style="margin:0;padding-left:20px">'+p.brief.map(b=>'<li>'+esc(b)+'</li>').join('')+'</ul></div></div>';
+  h += '<div class="stack"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Call note</h2><span class="chip ai">AI draft · nurse confirms</span></div>';
+  if(!c && !state.done[k]) h += '<div class="gap">No call yet. The draft fills in from the call log, the scheduler and the conversation.</div><div class="row"><button class="btn primary" type="button" data-call="'+k+'">Log the call (demo)</button></div>';
+  p.note.forEach((f,i)=>{
+    const shown = state.done[k] || i < c; const id=k+'-'+i;
+    if(!shown){h+='<div class="field pending"><b>'+esc(f[0])+'</b><span>Waiting for the call…</span></div>';return}
+    h+='<div class="field reveal"><div class="row" style="justify-content:space-between"><b>'+esc(f[0])+'</b><span class="chip '+(f[1]==='auto'?'ok':'warn')+'">'+(f[1]==='auto'?'auto · from system event':'confirm · from conversation')+'</span></div><span>'+esc(f[2])+'</span><span style="font-size:13px;color:var(--faint)">→ writes to '+esc(TARGET[f[0]]||'Assessment')+'</span>'+
+      (f[1]==='confirm'?'<label><input type="checkbox" id="cf-'+id+'" data-confirm="'+id+'"'+(conf[id]||state.done[k]?' checked':'')+(state.done[k]?' disabled':'')+'> I confirm this is what the member said</label>':'')+'</div>';
+  });
+  if(state.done[k]){
+    h+='<p class="filed reveal">Signed and filed as structured fields in the assessment, the care plan (problem → goal → intervention) and the audit note'+(k==='p1'?' · reconciled medication list sent to the PCP for the outpatient record':'')+' · M. Lopez · 10:58</p><div class="row"><a class="btn primary" href="#queue">Back to the queue</a></div>';
+  } else if(c>=p.note.length){
+    const need = p.note.map((f,i)=>f[1]==='confirm'?k+'-'+i:null).filter(Boolean);
+    const left = need.filter(id=>!conf[id]).length;
+    h+='<div class="row"><button class="btn primary" type="button" data-sign="'+k+'"'+(left?' disabled':'')+'>Sign and file to 3 forms</button><span style="font-size:14px;color:var(--muted)">'+(left?left+(left===1?' field still needs':' fields still need')+' your confirmation':'Ready to sign')+'</span></div>';
+  }
+  h += '</div></div>';
+  return h;
+}
+
+function route(){
+  const hsh = location.hash.replace('#','');
+  const v = document.getElementById('view');
+  let m;
+  if((m=hsh.match(/^member-(p[1-5])$/))){v.innerHTML=viewMember(m[1]);renderNotes('member')}
+  else if((m=hsh.match(/^note-(p[1-5])$/))){v.innerHTML=viewNote(m[1]);renderNotes('note')}
+  else {v.innerHTML=viewQueue();renderNotes('queue')}
+}
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button'); if(!t) return;
+  const ds=t.dataset;
+  if(ds.open){location.hash='member-'+ds.open;window.scrollTo(0,0);return}
+  if(ds.filter){state.filter=ds.filter;route();return}
+  if(ds.break){state.open[ds.break]=!state.open[ds.break];route();return}
+  if(ds.pick){state.decisions[ds.pick]=ds.i==='pcp'?'pcp':Number(ds.i);route();return}
+  if(ds.merge){state.merged[ds.merge]=true;route();return}
+  if(ds.mergeNo){state.decisions[ds.mergeNo+'-dupno']=1;route();return}
+  if(ds.route){state.reassigned[ds.route]=true;route();return}
+  if(ds.call){const k=ds.call;let i=0;const n=P[k].note.length;const step=()=>{i++;state.call[k]=i;route();if(i<n)setTimeout(step,450)};step();return}
+  if(ds.sign){state.done[ds.sign]=true;route();return}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.nba){state.nba[t.dataset.nba]=t.checked}
+  if(t.dataset.confirm){state.confirm[t.dataset.confirm]=t.checked;route()}
+});
+const tog=document.getElementById('toggleNotes');
+tog.addEventListener('click',()=>{const off=document.body.classList.toggle('nonotes');tog.textContent=off?'Show design notes':'Hide design notes';tog.setAttribute('aria-pressed',String(!off))});
+window.addEventListener('hashchange',route);
+route();
+</script>
+</body>
+</html>
